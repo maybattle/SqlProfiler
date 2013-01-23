@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace HelloWorld.Properties {
+namespace LinqToSql.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]

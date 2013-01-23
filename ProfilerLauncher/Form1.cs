@@ -29,34 +29,42 @@ namespace ProfilerLauncher
 {
     public partial class Form1 : Form
     {
-        // profiler GUIDasdasd aklsjd ;lkaj;dlkaj ;lkdj a;lskd 
-        // al;ksd;lka j;k;ljdka j;ldks aj;lkds ja;lks
+        
         private const string PROFILER_GUID = "{9E2B38F2-7355-4C61-A54F-434B7AC266C0}";
                                                                           
-        // executable to run
-        private const string EXECUTABLE_TO_RUN = "HelloWorld.exe";
 
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void runEf_Click(object sender, EventArgs e)
+        {
+            RunAndProfileProcess("HelloWorld.exe");
+        }
+
+        private void runLinq_Click(object sender, EventArgs e)
+        {
+            RunAndProfileProcess("LinqToSql.exe");
+        }
+
+        private static void RunAndProfileProcess(string pathToExecutable)
         {
             ProcessStartInfo psi;
 
             // make sure the executable exists
-            if (File.Exists(EXECUTABLE_TO_RUN) == false)
+            if (File.Exists(pathToExecutable) == false)
             {
-                MessageBox.Show("The executable '" + EXECUTABLE_TO_RUN + "' does not exist.\nCheck the EXECUTABLE_TO_RUN constant in the program.");
+                MessageBox.Show("The executable '" + pathToExecutable +
+                                "' does not exist.\nCheck the EXECUTABLE_TO_RUN constant in the program.");
                 return;
             }
 
             // create a process executor
-            psi = new ProcessStartInfo(EXECUTABLE_TO_RUN);
+            psi = new ProcessStartInfo(pathToExecutable);
 
             // ----- SET THE CLR ENVIRONMENT VARIABLES -------------------
-            
+
             // set the Cor_Enable_Profiling env var. This indicates to the CLR whether or
             // not we are using the profiler at all.  1 = yes, 0 = no.
             if (psi.EnvironmentVariables.ContainsKey("COR_ENABLE_PROFILING") == true)
@@ -85,6 +93,8 @@ namespace ProfilerLauncher
             psi.UseShellExecute = false;
             Process p = Process.Start(psi);
         }
+
+     
 
     }
 }

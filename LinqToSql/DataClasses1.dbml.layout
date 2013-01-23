@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ordesignerObjectsDiagram dslVersion="1.0.0.0" absoluteBounds="0, 0, 11, 8.5" name="DataClasses1">
+  <DataContextMoniker Name="/DataClasses1DataContext" />
+  <nestedChildShapes>
+    <classShape Id="bf03c19b-cb0d-4362-8102-3fcc59ebb8ed" absoluteBounds="1.5, 2.25, 2, 2.7324039713541666">
+      <DataClassMoniker Name="/DataClasses1DataContext/JWEwolf_Debitor" />
+      <nestedChildShapes>
+        <elementListCompartment Id="24af4399-0d02-47bc-bbcd-7688b07e20b0" absoluteBounds="1.5150000000000001, 2.71, 1.9700000000000002, 2.1724039713541665" name="DataPropertiesCompartment" titleTextColor="Black" itemTextColor="Black" />
+      </nestedChildShapes>
+    </classShape>
+  </nestedChildShapes>
+</ordesignerObjectsDiagram>

@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
+  <!-- EF Runtime content -->
+  <edmx:Runtime>
+    <!-- SSDL content -->
+    <edmx:StorageModels>
+      <Schema Namespace="ewolf2012_RalfModel.Store" Alias="Self" Provider="System.Data.SqlClient" ProviderManifestToken="2008" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns="http://schemas.microsoft.com/ado/2006/04/edm/ssdl">
+        <EntityContainer Name="ewolf2012_RalfModelStoreContainer">
+          <EntitySet Name="JWEwolf_Debitor" EntityType="ewolf2012_RalfModel.Store.JWEwolf_Debitor" store:Type="Tables" Schema="jw" />
+        </EntityContainer>
+        <EntityType Name="JWEwolf_Debitor">
+          <Key>
+            <PropertyRef Name="intDebitorId" />
+          </Key>
+          <Property Name="intDebitorId" Type="int" Nullable="false" StoreGeneratedPattern="Identity" />
+          <Property Name="strDebitorNumber" Type="nvarchar" Nullable="false" MaxLength="50" />
+          <Property Name="intPortalId" Type="int" Nullable="false" />
+          <Property Name="intSalesMediumId" Type="int" />
+          <Property Name="intMarketingMediumId" Type="int" />
+          <Property Name="xmlDetailsSerialized" Type="xml" Nullable="false" />
+          <Property Name="strCreateUser" Type="nvarchar" Nullable="false" MaxLength="100" />
+          <Property Name="strModifyUser" Type="nvarchar" Nullable="false" MaxLength="100" />
+          <Property Name="dtmCreateDate" Type="datetime" Nullable="false" />
+          <Property Name="dtmModifyDate" Type="datetime" Nullable="false" />
+        </EntityType>
+      </Schema>
+    </edmx:StorageModels>
+    <!-- CSDL content -->
+    <edmx:ConceptualModels>
+      <Schema Namespace="ewolf2012_RalfModel" Alias="Self" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns="http://schemas.microsoft.com/ado/2006/04/edm">
+        <EntityContainer Name="ewolf2012_RalfEntities">
+          <EntitySet Name="JWEwolf_Debitor" EntityType="ewolf2012_RalfModel.Debitor" />
+        </EntityContainer>
+        <EntityType Name="Debitor">
+          <Key>
+            <PropertyRef Name="intDebitorId" />
+          </Key>
+          <Property Name="intDebitorId" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="strDebitorNumber" Type="String" Nullable="false" MaxLength="50" Unicode="true" FixedLength="false" />
+          <Property Name="intPortalId" Type="Int32" Nullable="false" />
+          <Property Name="intSalesMediumId" Type="Int32" />
+          <Property Name="intMarketingMediumId" Type="Int32" />
+          <Property Name="xmlDetailsSerialized" Type="String" Nullable="false" MaxLength="Max" Unicode="true" FixedLength="false" />
+          <Property Name="strCreateUser" Type="String" Nullable="false" MaxLength="100" Unicode="true" FixedLength="false" />
+          <Property Name="strModifyUser" Type="String" Nullable="false" MaxLength="100" Unicode="true" FixedLength="false" />
+          <Property Name="dtmCreateDate" Type="DateTime" Nullable="false" Precision="3" />
+          <Property Name="dtmModifyDate" Type="DateTime" Nullable="false" Precision="3" />
+        </EntityType>
+      </Schema>
+    </edmx:ConceptualModels>
+    <!-- C-S mapping content -->
+    <edmx:Mappings>
+      <Mapping Space="C-S" xmlns="urn:schemas-microsoft-com:windows:storage:mapping:CS">
+        <EntityContainerMapping StorageEntityContainer="ewolf2012_RalfModelStoreContainer" CdmEntityContainer="ewolf2012_RalfEntities">
+          <EntitySetMapping Name="JWEwolf_Debitor">
+            <EntityTypeMapping TypeName="ewolf2012_RalfModel.Debitor">
+              <MappingFragment StoreEntitySet="JWEwolf_Debitor">
+                <ScalarProperty Name="intDebitorId" ColumnName="intDebitorId" />
+                <ScalarProperty Name="strDebitorNumber" ColumnName="strDebitorNumber" />
+                <ScalarProperty Name="intPortalId" ColumnName="intPortalId" />
+                <ScalarProperty Name="intSalesMediumId" ColumnName="intSalesMediumId" />
+                <ScalarProperty Name="intMarketingMediumId" ColumnName="intMarketingMediumId" />
+                <ScalarProperty Name="xmlDetailsSerialized" ColumnName="xmlDetailsSerialized" />
+                <ScalarProperty Name="strCreateUser" ColumnName="strCreateUser" />
+                <ScalarProperty Name="strModifyUser" ColumnName="strModifyUser" />
+                <ScalarProperty Name="dtmCreateDate" ColumnName="dtmCreateDate" />
+                <ScalarProperty Name="dtmModifyDate" ColumnName="dtmModifyDate" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+        </EntityContainerMapping>
+      </Mapping>
+    </edmx:Mappings>
+  </edmx:Runtime>
+  <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <Designer xmlns="http://schemas.microsoft.com/ado/2007/06/edmx">
+    <Connection>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="MetadataArtifactProcessing" Value="EmbedInOutputAssembly" />
+      </DesignerInfoPropertySet>
+    </Connection>
+    <Options>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="ValidateOnBuild" Value="true" />
+        <DesignerProperty Name="EnablePluralization" Value="False" />
+        <DesignerProperty Name="IncludeForeignKeysInModel" Value="False" />
+      </DesignerInfoPropertySet>
+    </Options>
+    <!-- Diagram content (shape and connector positions) -->
+    <Diagrams></Diagrams>
+  </Designer>
+</edmx:Edmx>

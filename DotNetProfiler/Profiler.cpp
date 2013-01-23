@@ -255,33 +255,16 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 		// get it from the map and update it
 		functionInfo = (iter->second);
 
-		/*size_t pRetValueLength =0;
-		char pRetValue[100000];
-		if(TryGetCommandText("get_CommandText",functionInfo, argumentRange, pRetValue, &pRetValueLength)){
-			LogString("SqlCommand Length=%d; CommandText=%s",pRetValueLength, pRetValue);
-			PrintFunctionArguments(functionID, frameInfo, argumentRange);
-		}
-
-		pRetValueLength = 0;
-		memset(pRetValue,0, sizeof(pRetValue));
-		if(TryGetParameter("get_ParameterName",functionInfo, argumentRange, pRetValue, &pRetValueLength)){
-			LogString("ParameterName Length=%d; Name=%s",pRetValueLength, pRetValue);
-			PrintFunctionArguments(functionID, frameInfo, argumentRange);
-		}
+		string result;
 		
-		pRetValueLength = 0;
-		memset(pRetValue,0, sizeof(pRetValue));
-		if(TryGetParameter("System.Data.SqlClient.SqlParameter.get_Value",functionInfo, argumentRange, pRetValue, &pRetValueLength)){
-			LogString("System.Data.SqlClient.SqlParameter.get_Value.ParameterName Length=%d; Name=%s",pRetValueLength, pRetValue);
-			
-		}*/
-
-		std::string fNameRef = "TestString";
+		//std::string fNameRef = "System.Data.SqlClient.SqlParameter.get_Value";
+		//std::string fNameRef = "System.Data.SqlClient.SqlCommand.get_CommandText";
+		std::string fNameRef = "TestBoxedInt";
 		std::string functionName = functionInfo->GetName();
 		if(functionName.find(fNameRef)!=std::string::npos){
 			INT32 returnTypeAsEnum;
 			functionInfo->SetReturnTypeName(GetReturnTypeName(functionID, argumentRange, &returnTypeAsEnum));
-			LogString("ReturnTypeName=%s, CoreElementType=%d",functionInfo->GetReturnTypeName().c_str(), returnTypeAsEnum);	
+			LogString("Function=%s ReturnTypeName=%s, CoreElementType=%d ",functionInfo->GetName(),functionInfo->GetReturnTypeName().c_str(), returnTypeAsEnum);	
 			switch(returnTypeAsEnum){
 				case CorElementType::ELEMENT_TYPE_I4:{
 						INT32 value = GetInt32ReturnValue(argumentRange);
@@ -307,8 +290,30 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 						LogString("ReturnValueString=%s",value.c_str());
 						break;
 					}
+				case CorElementType::ELEMENT_TYPE_OBJECT:
+					{
+						//look if return value is a boxed value type
+						ObjectID objectId;
+						memcpy(&objectId,(void*)argumentRange->startAddress,argumentRange->length);
+						ClassID classId;
+						HRESULT hr = m_pICorProfilerInfo2->GetClassFromObject(objectId, &classId);
+						string className = GetClassName(classId);
+						LogString("BoxedClassName=%s",className.c_str());
+						if(SUCCEEDED(hr)){
+							ULONG32 bufferOffset;
+							m_pICorProfilerInfo2->GetBoxClassLayout(classId,&bufferOffset);
+							INT32 value;
+							memcpy(&value,(void*)(argumentRange->startAddress+bufferOffset),argumentRange->length);
+							LogString("ReturnValueBoxedInt32=%d; Length=%d",value,argumentRange->length);
+						}
+						else{
+							LogString("No boxed value type");
+						}
+						break;
+					}
 			}
 			//GetDateTimeReturnValue(argumentRange);
+			LogString("\r\n");
 		}
 	}
 	// decrement the call stack size
@@ -332,6 +337,29 @@ INT32 CProfiler::GetInt32ReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argu
 	INT32 value;
 	memcpy(&value,(void*)argumentRange->startAddress,argumentRange->length);
 	return value;
+}
+
+string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
+	if(argumentRange== NULL) return NULL;
+	string returnValue;
+	ULONG pBufferLengthOffset;
+	ULONG pStringLengthOffset;
+	ULONG pBufferOffset;
+	m_pICorProfilerInfo2->GetStringLayout(&pBufferLengthOffset, &pStringLengthOffset, &pBufferOffset);
+	ObjectID stringOID;
+	memcpy(&stringOID,((const void*)(argumentRange->startAddress)),argumentRange->length);
+	DWORD stringLength;
+	memcpy(&stringLength,((const void*)(stringOID+pStringLengthOffset)),sizeof(DWORD));
+
+	WCHAR tempParameterValue[100000];
+	memcpy(tempParameterValue,((const void*)(stringOID+pBufferOffset)),stringLength * sizeof(DWORD));
+	tempParameterValue[stringLength*sizeof(DWORD)]= '\0';
+	//convert WCHAR to char
+	char narrowTempParameterValue[100000];
+	UINT narrowTempParameterValueLength=0;
+	wcstombs_s(&narrowTempParameterValueLength,narrowTempParameterValue,wcslen(tempParameterValue)+1,tempParameterValue,_TRUNCATE);
+	returnValue = narrowTempParameterValue;
+	return returnValue;
 }
 
 std::string CProfiler::GetReturnTypeName(const FunctionID functionId, const COR_PRF_FUNCTION_ARGUMENT_RANGE *range, INT32 *pCoreElementType){
@@ -592,47 +620,27 @@ bool CProfiler::TryGetParameterValue(char *pFilterFunctionName, CFunctionInfo *p
 	return *pRetValueLength>0;
 }
 
-bool CProfiler::TryGetParameter(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,char * pRetValue, size_t *pRetValueLength){
+bool CProfiler::TryGetParameter(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,string &result){
 	
 	std::string fNameRef = pFilterFunctionName;
 	std::string functionName = pFunctionInfo->GetName();
 	if(functionName.find(fNameRef)!=std::string::npos){
-		GetStringReturnValue(argumentRange);
+		result= GetStringReturnValue(argumentRange);
+		
 	}
-	return *pRetValueLength>0;
+	return result.length()>0;
 }
 
-bool CProfiler::TryGetCommandText(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,char * pRetValue, size_t *pRetValueLength){
+bool CProfiler::TryGetCommandText(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange, string &result){
 	std::string fNameRef = pFilterFunctionName;
 	std::string functionName = pFunctionInfo->GetName();
 	if(functionName.find(fNameRef)!=std::string::npos){
-		GetStringReturnValue(argumentRange);
+		result = GetStringReturnValue(argumentRange);
 	}
-	return *pRetValueLength>0;
+	return result.length()>0;
 }
 
-string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
-	if(argumentRange== NULL) return NULL;
-	string returnValue;
-	ULONG pBufferLengthOffset;
-	ULONG pStringLengthOffset;
-	ULONG pBufferOffset;
-	m_pICorProfilerInfo2->GetStringLayout(&pBufferLengthOffset, &pStringLengthOffset, &pBufferOffset);
-	ObjectID stringOID;
-	memcpy(&stringOID,((const void*)(argumentRange->startAddress)),argumentRange->length);
-	DWORD stringLength;
-	memcpy(&stringLength,((const void*)(stringOID+pStringLengthOffset)),sizeof(DWORD));
 
-	WCHAR tempParameterValue[100000];
-	memcpy(tempParameterValue,((const void*)(stringOID+pBufferOffset)),stringLength * sizeof(DWORD));
-	tempParameterValue[stringLength*sizeof(DWORD)]= '\0';
-	//convert WCHAR to char
-	char narrowTempParameterValue[100000];
-	UINT narrowTempParameterValueLength=0;
-	wcstombs_s(&narrowTempParameterValueLength,narrowTempParameterValue,wcslen(tempParameterValue)+1,tempParameterValue,_TRUNCATE);
-	returnValue = narrowTempParameterValue;
-	return returnValue;
-}
 
 
 void CProfiler::GetDateTimeReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
@@ -645,41 +653,6 @@ void CProfiler::GetDateTimeReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argument
 	objectID=	*(INT64*)(argumentRange->startAddress);
 	objectID = objectID & 0x3FFFFFFFFFFFFFFF;
 	LogString("Startaddress=%d, length=%d, Value=%I64d",argumentRange->startAddress,argumentRange->length, objectID);
-	/*hr = m_pICorProfilerInfo2->GetClassFromObject(objectID, &classID);
-	if(FAILED(hr)) goto _ERROR;
-	LogString("GetClassFromObject");
-
-	ModuleID moduleId;
-	mdTypeDef mdTokenId;
-	IMetaDataImport *pIMetaDataImport = 0;
-	hr = m_pICorProfilerInfo->GetClassIDInfo(classID,&moduleId,&mdTokenId);
-	LogString("GetClassIDInfo");
-
-	if(FAILED(hr)) goto _ERROR;
-	
-
-	hr= m_pICorProfilerInfo->GetModuleMetaData(moduleId,ofRead, IID_IMetaDataImport, (LPUNKNOWN *) &pIMetaDataImport);
-	if(FAILED(hr)) goto _ERROR;
-	LogString("GetModuleMetaData");
-
-	LPWSTR szClass = new WCHAR[MAX_CLASSNAME_LENGTH];
-	ULONG cchClass;
-	IfFailGoto(pIMetaDataImport->GetTypeDefProps(mdTokenId, szClass, MAX_CLASSNAME_LENGTH, &cchClass, 0, 0), _ERROR);
-	LogString("GetTypeDefProps");
-	
-	size_t pRetValueLength;
-	char pRetValue[MAX_CLASSNAME_LENGTH];
-	wcstombs_s(&pRetValueLength,pRetValue,wcslen(szClass)+1,szClass,_TRUNCATE);
-	LogString("Length=%d, Name=%s",cchClass,pRetValue);
-	delete szClass;
-	
-	pIMetaDataImport->Release();
-	goto _END;
-
-	_ERROR:
-		LogString("Error");
-	_END:*/
-
 	return;
 }
 
@@ -713,174 +686,6 @@ WCHAR* CProfiler::DecodeString(PBYTE pObjectByte)
 }
 
 
-//void CProfiler::PrintParameterValue(int index,CorElementType type,PBYTE pValues)
-//{
-//	HRESULT hr = 0;
-//
-//	// get our value pointer
-//	PVOID* pValueVoid = (PVOID*)(pValues + (index*4));
-//	PVOID pObjectVoid = NULL;
-//	PBYTE pObjectByte = NULL;
-//	ObjectID objectId = 0;
-//	ClassID classId = 0;
-//	if(pValueVoid == NULL)
-//	{
-//		LogString("\t\t\tParameter[%d] had a NULL value\r\n",index);
-//		return;
-//	}
-//	if(type == ELEMENT_TYPE_VAR)
-//	{
-//		LogString("\t\t\tParameter[%d] was an ELEMENT_TYPE_VAR.  Value not retrieved.\r\n",index);
-//		return;
-//	}
-//	if(type == ELEMENT_TYPE_VOID)
-//	{
-//		LogString("\t\t\tParameter[%d] was an ELEMENT_TYPE_VOID.  No value to retrieve.\r\n",index);
-//		return;
-//	}
-//
-//	// get the object value or pointer
-//	pObjectVoid = *pValueVoid;
-//	if(IsReferenceType(type))
-//	{
-//		// get the object ID / pointer by derefing since it's a ref type thing
-//		pObjectByte = (PBYTE)pObjectVoid;
-//		objectId = (ObjectID)pObjectVoid; 
-//		hr = m_pICorProfilerInfo2->GetClassFromObject(objectId,&classId);
-//		if(FAILED(hr))
-//		{
-//			LogString("!!!! Failed to get class from objectID (0x%08X), param[%d]\r\n",objectId,index); 
-//			return;
-//		}
-//	}
-	
-	//WCHAR* pString = NULL;
-	//CorElementType baseElementType = ELEMENT_TYPE_VOID;
-	//ClassID baseClassId = 0;
-	//ULONG cRank = 0;
-	//ULONG numElements = 0;
-	//ULONG32* pDimensionSizes = NULL;
-	//int* pDimensionLowerBounds = NULL;
-	//BYTE* pArrayData;
-	//char typeString[128];
-	//typeString[0]=0x00;
-
-	//ULONG32 offsBoxBuffer = 0;
-
-	//switch(type)
-	//{
-	//	case ELEMENT_TYPE_I4:
-	//		if(pObjectVoid != NULL)
-	//			LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_I4) == %d\r\n",index,pObjectVoid); 
-	//		else
-	//			LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_I4) == No value accessible\r\n",index); 
-	//		break;
-	//	case ELEMENT_TYPE_STRING:
-	//		pString = DecodeString(pObjectByte);
-	//		// if we got the string value print it out
-	//		if(pString != NULL)
-	//			LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_STRING) == %S\r\n",index,pString); 
-	//		else
-	//			LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_STRING) == No value accessible\r\n",index); 
-	//		break;
-
-	//	case ELEMENT_TYPE_SZARRAY:
-	//		hr = m_pICorProfilerInfo2->IsArrayClass(classId,&baseElementType,&baseClassId,&cRank);
-	//		if((SUCCEEDED(hr))&&(S_FALSE != hr))
-	//		{
-
-	//			GetElementTypeString(baseElementType,typeString);
-	//			ClassName(baseClassId,g_szName);
-	//			if((baseElementType == ELEMENT_TYPE_CLASS)&&
-	//				(wcscmp(g_szName,L"System.String")==0))
-	//			{
-	//				baseElementType = ELEMENT_TYPE_STRING;
-	//			}
-	//			LogString("\t\t\tArray Element Type: %s; Array Element Class Name: %S; Rank %ld\r\n",typeString,g_szName,cRank);
-	//			// found an array
-	//			pDimensionSizes = new ULONG32[cRank];
-	//			pDimensionLowerBounds = new int[cRank];
-	//			hr = m_pICorProfilerInfo2->GetArrayObjectInfo(objectId,
-	//														cRank,
-	//														pDimensionSizes,
-	//														pDimensionLowerBounds,
-	//														&pArrayData);
-	//			if(SUCCEEDED(hr))
-	//			{
-	//				if((pDimensionSizes != NULL) && (pDimensionSizes[0]>0))
-	//				{
-	//					LogString("\t\t\tParameter[%d] (ELEMENT_TYPE_SZARRAY)\r\n",index); 
-	//					if(baseElementType == ELEMENT_TYPE_STRING)
-	//					{
-	//						pString = DecodeString((pArrayData + (index * 4)));
-	//						// if we got the string value print it out
-	//						if(pString != NULL)
-	//							LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_STRING) == %S\r\n",index,pString); 
-	//						else
-	//							LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_STRING) == No value accessible\r\n",index); 
-	//						break;
-	//					}
-	//					else if (baseClassId == m_MyClassID)
-	//					{
-	//						DumpArrayInfo (baseClassId,
-	//									   cRank,
-	//									   pDimensionSizes,
-	//									   pDimensionLowerBounds,
-	//									   pArrayData);
-
-	//					}
-	//				}
-	//			}
-
-	//			delete [] pDimensionSizes;
-	//			delete [] pDimensionLowerBounds;
-	//		}
-	//		break;
-	//	case ELEMENT_TYPE_OBJECT:
-	//		// See if any boxing is going on
-	//		hr = m_pICorProfilerInfo2->GetBoxClassLayout(classId,&offsBoxBuffer);
-	//		if(SUCCEEDED(hr))
-	//		{
-	//			pObjectByte += offsBoxBuffer;
-	//			char value[48];
-	//			value[0]=0x00;
-	//			sprintf_s(value,48,"%d",*pObjectByte);
-	//			// Assuming 4 byte item here...
-	//			ClassName(classId,g_szName);
-	//			LogString("\t\t\tParameter[%d] Value (Boxed Value was %S) == %s\r\n",index,g_szName,value); 
-	//		}
-	//		else
-	//		{
-	//			LogString("\t\t\tParameter[%d] Value (ELEMENT_TYPE_OBJECT)== \r\n",index); 
-	//		}
-	//		break;
-	//	default:
-	//		LogString("\t\t\tParameter[%d] Value == NOTIMPL\r\n",index); 
-	//		break;
-	//}
-//}
-
-
-//
-// Print out the CorElementTypes for the arguments to this function
-//
-//
-
-
-
-void CProfiler::GetUnspecifiedReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange, void *pRetValue, size_t* pRetValueLength){
-	//if(argumentRange== NULL) return;
-	//ObjectID stringOID;
-	//memcpy(&stringOID,((const void*)(argumentRange->startAddress)),argumentRange->length);
-	//
-	//DWORD stringLength;
-	//memcpy(&stringLength,((const void*)(stringOID+pStringLengthOffset)),sizeof(DWORD));
-
-	//WCHAR tempParameterValue[100000];
-	//memcpy(tempParameterValue,((const void*)(stringOID+pBufferOffset)),stringLength * sizeof(DWORD));
-	////convert WCHAR to char
-	return;
-}
 
 // our real handler for the FunctionTailcall notification
 void CProfiler::Tailcall(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_INFO frameInfo)
@@ -1146,124 +951,112 @@ bool CProfiler::IsReferenceType(CorElementType type)
 //
 // ClassName
 //
-//bool CProfiler::ClassName(ClassID classId, LPWSTR wszClass )
-//{
-//	ClassID parentClassId;
-//	ModuleID moduleId;
-//	mdTypeDef typeDef;
-//	bool bIsArray = false;
-//	ClassID* typeArgs = NULL;
-//	ULONG32 cNumTypeArgs = 16;
-//
-//	// init the string to blank
-//	wszClass[0] = 0;
-//
-//	// Get the information about the class
-//	HRESULT hr = E_FAIL;
-//	// occasionally this call seems to fail when the classID looks ok from inside of movedreferences....
-//	// Since it is possible for the __COMObject types classes (interop) to receive different classId values for the same class
-//	// perhaps we are falling afoul of that since interop requires a different EE class for each application domain so the
-//	// user can potentially create a different v-table for each one of them.  The profiler doesn't provide a way to get this appdomain however...
-//	try
-//	{
-//		if(m_pICorProfilerInfo2.p == NULL)
-//		{
-//			hr = m_pICorProfilerInfo->GetClassIDInfo( classId, &moduleId, &typeDef );
-//		}
-//		else
-//		{
-//			typeArgs = new ClassID[cNumTypeArgs];
-//			hr = m_pICorProfilerInfo2->GetClassIDInfo2( classId, 
-//														&moduleId, 
-//														&typeDef,
-//														&parentClassId,
-//														cNumTypeArgs,
-//														&cNumTypeArgs,
-//														typeArgs);
-//		}
-//	}
-//	catch(...)
-//	{
-//		LogString("**** ICorProfilerInfo::GetClassIDInfo failed with classId 0x%08X\r\n",classId);
-//			return false;
-//	}
-//
-//	if ( FAILED(hr) || typeDef == 0)
-//	{
-//		ClassID baseClassId = 0;
-//		CorElementType type;
-//		ULONG cRank = 0;
-//		// might be an array in which case we need to translate the classID to the base classID of the array
-//		hr = m_pICorProfilerInfo->IsArrayClass(classId,&type,&baseClassId,&cRank);
-//		if(FAILED (hr) || hr == S_FALSE)
-//			return false;
-//		else
-//		{
-//			// use the base class of the array
-//			hr = m_pICorProfilerInfo->GetClassIDInfo( baseClassId, &moduleId,
-//														&typeDef );
-//			if(FAILED (hr))
-//				return false;
-//			else
-//			{
-//				// update the classId
-//				classId = baseClassId;
-//				bIsArray = true;
-//			}
-//		}
-//	}
-//	    
-//
-//	IMetaDataImport * pIMetaDataImport = 0;
-//	// go get the information about the module this class belongs to
-//	hr = m_pICorProfilerInfo->GetModuleMetaData( moduleId, ofRead,
-//										IID_IMetaDataImport,
-//										(LPUNKNOWN *)&pIMetaDataImport );
-//	if ( FAILED(hr) )
-//		return false;
-//
-//	if ( !pIMetaDataImport )
-//		return false;
-//
-//	wchar_t wszTypeDef[NAME_BUFFER_SIZE];
-//	DWORD cchTypeDef = sizeof(wszTypeDef)/sizeof(wszTypeDef[0]);
-//	// get the properties for the typedef for the class
-//	hr = pIMetaDataImport->GetTypeDefProps( typeDef, wszTypeDef, cchTypeDef,
-//											&cchTypeDef, 0, 0 );
-//	if ( FAILED(hr) )
-//		return false;
-//
-//	wcscpy_s( wszClass,1024, wszTypeDef );
-//
-//	// get generic type param names
-//	if(typeArgs != NULL)
-//	{
-//		if(cNumTypeArgs>0)
-//			wcscat_s(wszClass,1024,L"<");
-//		for(ULONG32 i=0;i<cNumTypeArgs;i++)
-//		{
-//			ClassName(typeArgs[i],wszTypeDef);
-//			wcscat_s(wszClass,1024,wszTypeDef);
-//			wcscat_s(wszClass,1024,L",");
-//		}
-//		if(cNumTypeArgs>0)
-//		{
-//			int index = wcslen(wszClass);
-//			// remove last comma
-//			wszClass[index-1]=0x00;
-//			wcscat_s(wszClass,1024,L">");
-//		}
-//	}
-//	// add on array identifier if was an array instance
-//	if(bIsArray)
-//		wcscat_s(wszClass,1024,L"[]");
-//
-//	delete [] typeArgs;
-//	 
-//	// make sure we give back the metadata import instance
-//	pIMetaDataImport->Release();
-//    return true;
-//}
+string CProfiler::GetClassName(ClassID classId)
+{
+	ClassID parentClassId;
+	ModuleID moduleId;
+	mdTypeDef typeDef;
+	bool bIsArray = false;
+	ClassID* typeArgs = NULL;
+	ULONG32 cNumTypeArgs = 16;
+
+	
+	string className;
+
+	// Get the information about the class
+	HRESULT hr = E_FAIL;
+	// occasionally this call seems to fail when the classID looks ok from inside of movedreferences....
+	// Since it is possible for the __COMObject types classes (interop) to receive different classId values for the same class
+	// perhaps we are falling afoul of that since interop requires a different EE class for each application domain so the
+	// user can potentially create a different v-table for each one of them.  The profiler doesn't provide a way to get this appdomain however...
+	try
+	{
+		if(m_pICorProfilerInfo2.p == NULL)
+		{
+			hr = m_pICorProfilerInfo->GetClassIDInfo( classId, &moduleId, &typeDef );
+		}
+		else
+		{
+			typeArgs = new ClassID[cNumTypeArgs];
+			hr = m_pICorProfilerInfo2->GetClassIDInfo2( classId, 
+														&moduleId, 
+														&typeDef,
+														&parentClassId,
+														cNumTypeArgs,
+														&cNumTypeArgs,
+														typeArgs);
+		}
+	}
+	catch(...)
+	{
+		LogString("**** ICorProfilerInfo::GetClassIDInfo failed with classId 0x%08X\r\n",classId);
+			return NULL;
+	}
+
+	if ( FAILED(hr) || typeDef == 0)
+	{
+		ClassID baseClassId = 0;
+		CorElementType type;
+		ULONG cRank = 0;
+		// might be an array in which case we need to translate the classID to the base classID of the array
+		hr = m_pICorProfilerInfo->IsArrayClass(classId,&type,&baseClassId,&cRank);
+		if(FAILED (hr) || hr == S_FALSE)
+			return false;
+		else
+		{
+			// use the base class of the array
+			hr = m_pICorProfilerInfo->GetClassIDInfo( baseClassId, &moduleId,&typeDef );
+			if(FAILED (hr)) return NULL;
+			else
+			{
+				// update the classId
+				classId = baseClassId;
+				bIsArray = true;
+			}
+		}
+	}
+
+	IMetaDataImport * pIMetaDataImport = 0;
+	// go get the information about the module this class belongs to
+	hr = m_pICorProfilerInfo->GetModuleMetaData( moduleId, ofRead,IID_IMetaDataImport,(LPUNKNOWN *)&pIMetaDataImport );
+	if ( FAILED(hr)) return NULL;
+	
+
+	wchar_t wszTypeDef[NAME_BUFFER_SIZE];
+	DWORD cchTypeDef = sizeof(wszTypeDef)/sizeof(wszTypeDef[0]);
+	// get the properties for the typedef for the class
+	hr = pIMetaDataImport->GetTypeDefProps( typeDef, wszTypeDef, cchTypeDef,&cchTypeDef, 0, 0 );
+	if ( FAILED(hr)) return NULL;
+	char classNameAsChar[NAME_BUFFER_SIZE];
+	wcstombs(classNameAsChar,wszTypeDef,NAME_BUFFER_SIZE);
+	className = classNameAsChar;
+
+	// get generic type param names
+	if(typeArgs != NULL)
+	{
+		if(cNumTypeArgs>0)
+			className = className.append("<");
+		for(ULONG32 i=0;i<cNumTypeArgs;i++)
+		{
+			//recursive call
+			string result =GetClassName(typeArgs[i]);
+			className= className.append(result).append(",");
+		}
+		if(cNumTypeArgs>0)
+		{
+			// remove last comma
+			className = className.substr(0,className.length()-1);
+			className = className.append(">");
+		}
+	}
+	// add on array identifier if was an array instance
+	if(bIsArray) className= className.append("[]");
+	delete [] typeArgs;
+	 
+	// make sure we give back the metadata import instance
+	pIMetaDataImport->Release();
+    return className;
+}
 
 
 //void CProfiler::PrintFunctionArguments (FunctionID funcId,

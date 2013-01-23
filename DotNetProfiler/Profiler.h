@@ -85,8 +85,8 @@ private:
 	std::map<FunctionID, CFunctionInfo*> m_functionMap;
 	
 	bool TryGetParameterValue(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,void * pRetValue, size_t *pRetValueLength);
-	bool TryGetCommandText(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,char * pRetValue, size_t *pRetValueLength);
-	bool TryGetParameter(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,char * pRetValue, size_t *pRetValueLength);
+	bool TryGetCommandText(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,string &result);
+	bool TryGetParameter(char *pFilterFunctionName, CFunctionInfo *pFunctionInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange,string &result);
 
 	//get the return value of a function
 	std::string CProfiler::GetReturnTypeName(const FunctionID functionId, const COR_PRF_FUNCTION_ARGUMENT_RANGE *range, INT32 *pCoreElementType);
@@ -101,6 +101,7 @@ private:
 
 	// gets the full method name given a function ID
 	HRESULT GetFullMethodName(FunctionID functionId, LPWSTR wszMethod, int cMethod );
+	string CProfiler::GetClassName(ClassID classId);
 
 	HRESULT GetMethodParameters(FunctionID functionId, COR_PRF_FRAME_INFO frameInfo, LPWSTR wszMethod, int cMethod);
 	// function to set up our event mask

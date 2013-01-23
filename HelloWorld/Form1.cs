@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
@@ -40,6 +41,25 @@ namespace HelloWorld
             p=TestClass(p);
             point = TestPoint();
             TestString("Ralf");
+            TestBoxedInt(6);
+            TestBoxedDateTime(DateTime.Now);
+            TestObjectPerson(p);
+
+        }
+
+        private object TestObjectPerson(Persion persion)
+        {
+            return persion;
+        }
+
+        private object TestBoxedDateTime(DateTime now)
+        {
+            return now;
+        }
+
+        private object TestBoxedInt(int i)
+        {
+            return i;
         }
 
         private double TestDouble(double d)
@@ -73,8 +93,18 @@ namespace HelloWorld
 
         private void button1_Click(object sender, EventArgs e)
         {
-            
-            //MessageBox.Show("Hello world!");
+            var ctx = new ewolf2012_RalfEntities();
+            var result = ctx.JWEwolf_Debitor.Where(n => n.intDebitorId == 1 && n.dtmModifyDate<=DateTime.Now && n.strCreateUser.Contains("jack")).ToList();
+            foreach (var jwEwolfDebitor in result)
+            {
+                //jwEwolfDebitor.intDebitorId = 2;
+            }
+
+            //NativeAdoDotNet();
+        }
+
+        private void NativeAdoDotNet()
+        {
             var builder = new SqlConnectionStringBuilder();
             builder.DataSource = "test.sql.id.jwde.local";
             builder.InitialCatalog = "JWConsumerDB";

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?><Database Name="ewolf2012_Ralf" Class="DataClasses1DataContext" xmlns="http://schemas.microsoft.com/linqtosql/dbml/2007">
+  <Connection Mode="AppSettings" ConnectionString="Data Source=test.sql.id.jwde.local;Initial Catalog=ewolf2012_Ralf;Integrated Security=True" SettingsObjectName="LinqToSql.Properties.Settings" SettingsPropertyName="ewolf2012_RalfConnectionString" Provider="System.Data.SqlClient" />
+  <Table Name="jw.JWEwolf_Debitor" Member="JWEwolf_Debitors">
+    <Type Name="JWEwolf_Debitor">
+      <Column Name="intDebitorId" Type="System.Int32" DbType="Int NOT NULL IDENTITY" IsPrimaryKey="true" IsDbGenerated="true" CanBeNull="false" />
+      <Column Name="strDebitorNumber" Type="System.String" DbType="NVarChar(50) NOT NULL" CanBeNull="false" />
+      <Column Name="intPortalId" Type="System.Int32" DbType="Int NOT NULL" CanBeNull="false" />
+      <Column Name="intSalesMediumId" Type="System.Int32" DbType="Int" CanBeNull="true" />
+      <Column Name="intMarketingMediumId" Type="System.Int32" DbType="Int" CanBeNull="true" />
+      <Column Name="xmlDetailsSerialized" Type="System.Xml.Linq.XElement" DbType="Xml NOT NULL" CanBeNull="false" UpdateCheck="Never" />
+      <Column Name="strCreateUser" Type="System.String" DbType="NVarChar(100) NOT NULL" CanBeNull="false" />
+      <Column Name="strModifyUser" Type="System.String" DbType="NVarChar(100) NOT NULL" CanBeNull="false" />
+      <Column Name="dtmCreateDate" Type="System.DateTime" DbType="DateTime NOT NULL" CanBeNull="false" />
+      <Column Name="dtmModifyDate" Type="System.DateTime" DbType="DateTime NOT NULL" CanBeNull="false" />
+    </Type>
+  </Table>
+</Database>

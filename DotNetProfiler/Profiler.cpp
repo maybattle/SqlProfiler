@@ -225,7 +225,7 @@ void CProfiler::Enter(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 			memset(padding, ' ', padCharCount);
 			// log the function call
 			//LogString("%s%s, id=%d, call count = %d\r\n", padding, functionInfo->GetName(), functionInfo->GetFunctionID(), functionInfo->GetCallCount());
-			delete padding;
+			delete[] padding;
 		}
 		else
 		{
@@ -267,7 +267,7 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 			LogString("Function=%s ReturnTypeName=%s, CoreElementType=%d ",functionInfo->GetName(),functionInfo->GetReturnTypeName().c_str(), returnTypeAsEnum);	
 			switch(returnTypeAsEnum){
 				case CorElementType::ELEMENT_TYPE_I4:{
-						INT32 value = GetInt32ReturnValue(argumentRange);
+						INT32 value = GetInt32ReturnValue(argumentRange->startAddress,argumentRange->length);
 						LogString("ReturnValue=%d",value);	
 						break;
 					}
@@ -293,26 +293,38 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 				case CorElementType::ELEMENT_TYPE_OBJECT:
 					{
 						//look if return value is a boxed value type
-						ObjectID objectId;
-						memcpy(&objectId,(void*)argumentRange->startAddress,argumentRange->length);
+						ObjectID objectId = *(ObjectID*)argumentRange->startAddress;
 						ClassID classId;
 						HRESULT hr = m_pICorProfilerInfo2->GetClassFromObject(objectId, &classId);
-						string className = GetClassName(classId);
-						LogString("BoxedClassName=%s",className.c_str());
-						if(SUCCEEDED(hr)){
+						string className = GetTheClassName(classId);
+						
+						if(className.compare("System.Int32")==0)
+						{
 							ULONG32 bufferOffset;
 							m_pICorProfilerInfo2->GetBoxClassLayout(classId,&bufferOffset);
-							INT32 value;
-							memcpy(&value,(void*)(argumentRange->startAddress+bufferOffset),argumentRange->length);
-							LogString("ReturnValueBoxedInt32=%d; Length=%d",value,argumentRange->length);
+							INT32 value = GetInt32ReturnValue(argumentRange->startAddress+bufferOffset,sizeof(INT32));
+							LogString("BoxedInt32ReturnValue=%d",value);	
 						}
+						if(className.compare("System.DateTime")==0)
+						{
+							ULONG32 bufferOffset;
+							m_pICorProfilerInfo2->GetBoxClassLayout(classId,&bufferOffset);
+							UINT64 value = GetDateTimeReturnValue(argumentRange->startAddress+bufferOffset);
+							LogString("BoxedDateTimeReturnValue=%I64d",value);	
+						}
+
+						/*if(SUCCEEDED(hr)){
+							
+							
+							LogString("ReturnValueBoxedInt32=%d; Length=%d",value,argumentRange->length);
+						}*/
 						else{
 							LogString("No boxed value type");
 						}
 						break;
 					}
 			}
-			//GetDateTimeReturnValue(argumentRange);
+			
 			LogString("\r\n");
 		}
 	}
@@ -330,17 +342,18 @@ DOUBLE CProfiler::GetDoubleReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *ar
 FLOAT CProfiler::GetFloatReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
 	FLOAT value;
 	memcpy(&value,(void*)argumentRange->startAddress,argumentRange->length);
+	argumentRange->startAddress;
 	return value;
 }
 
-INT32 CProfiler::GetInt32ReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
+INT32 CProfiler::GetInt32ReturnValue(const UINT_PTR startAddress,ULONG length){
 	INT32 value;
-	memcpy(&value,(void*)argumentRange->startAddress,argumentRange->length);
+	memcpy(&value,(void*)startAddress,length);
 	return value;
+	
 }
 
 string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
-	if(argumentRange== NULL) return NULL;
 	string returnValue;
 	ULONG pBufferLengthOffset;
 	ULONG pStringLengthOffset;
@@ -351,14 +364,16 @@ string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argument
 	DWORD stringLength;
 	memcpy(&stringLength,((const void*)(stringOID+pStringLengthOffset)),sizeof(DWORD));
 
-	WCHAR tempParameterValue[100000];
+	WCHAR *tempParameterValue = new WCHAR[stringLength*sizeof(DWORD)];
 	memcpy(tempParameterValue,((const void*)(stringOID+pBufferOffset)),stringLength * sizeof(DWORD));
 	tempParameterValue[stringLength*sizeof(DWORD)]= '\0';
 	//convert WCHAR to char
-	char narrowTempParameterValue[100000];
+	char *narrowTempParameterValue = new char[stringLength];
 	UINT narrowTempParameterValueLength=0;
 	wcstombs_s(&narrowTempParameterValueLength,narrowTempParameterValue,wcslen(tempParameterValue)+1,tempParameterValue,_TRUNCATE);
 	returnValue = narrowTempParameterValue;
+	delete[] tempParameterValue;
+	delete[] narrowTempParameterValue;
 	return returnValue;
 }
 
@@ -641,19 +656,15 @@ bool CProfiler::TryGetCommandText(char *pFilterFunctionName, CFunctionInfo *pFun
 }
 
 
-
-
-void CProfiler::GetDateTimeReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
-	if(argumentRange== NULL) return;
-	
+UINT64 CProfiler::GetDateTimeReturnValue(UINT_PTR startAddress){
+	if(startAddress== NULL) return -1;
 	ClassID classID=0;
 	HRESULT hr;
-	INT64 objectID;
-
-	objectID=	*(INT64*)(argumentRange->startAddress);
-	objectID = objectID & 0x3FFFFFFFFFFFFFFF;
-	LogString("Startaddress=%d, length=%d, Value=%I64d",argumentRange->startAddress,argumentRange->length, objectID);
-	return;
+	INT64 value;
+	value=	*(UINT64*)(startAddress);
+	value = value & 0x3FFFFFFFFFFFFFFF;
+	//LogString("Startaddress=%d, length=%d, Value=%I64d",argumentRange->startAddress,argumentRange->length, objectID);
+	return value;
 }
 
 
@@ -879,7 +890,7 @@ HRESULT CProfiler::SetEventMask()
 	//COR_PRF_MONITOR_IMMUTABLE	= COR_PRF_MONITOR_CODE_TRANSITIONS | COR_PRF_MONITOR_REMOTING | COR_PRF_MONITOR_REMOTING_COOKIE | COR_PRF_MONITOR_REMOTING_ASYNC | COR_PRF_MONITOR_GC | COR_PRF_ENABLE_REJIT | COR_PRF_ENABLE_INPROC_DEBUGGING | COR_PRF_ENABLE_JIT_MAPS | COR_PRF_DISABLE_OPTIMIZATIONS | COR_PRF_DISABLE_INLINING | COR_PRF_ENABLE_OBJECT_ALLOCATED | COR_PRF_ENABLE_FUNCTION_ARGS | COR_PRF_ENABLE_FUNCTION_RETVAL | COR_PRF_ENABLE_FRAME_INFO | COR_PRF_ENABLE_STACK_SNAPSHOT | COR_PRF_USE_PROFILE_IMAGES
 
 	// set the event mask 
-	DWORD eventMask = (DWORD) (COR_PRF_MONITOR_ENTERLEAVE|COR_PRF_ENABLE_FUNCTION_ARGS|COR_PRF_ENABLE_FUNCTION_RETVAL);
+	DWORD eventMask = (DWORD) (COR_PRF_MONITOR_ENTERLEAVE|COR_PRF_ENABLE_FUNCTION_RETVAL);
 	return m_pICorProfilerInfo->SetEventMask(eventMask);
 }
 
@@ -951,7 +962,7 @@ bool CProfiler::IsReferenceType(CorElementType type)
 //
 // ClassName
 //
-string CProfiler::GetClassName(ClassID classId)
+string CProfiler::GetTheClassName(ClassID classId)
 {
 	ClassID parentClassId;
 	ModuleID moduleId;
@@ -1039,7 +1050,7 @@ string CProfiler::GetClassName(ClassID classId)
 		for(ULONG32 i=0;i<cNumTypeArgs;i++)
 		{
 			//recursive call
-			string result =GetClassName(typeArgs[i]);
+			string result =GetTheClassName(typeArgs[i]);
 			className= className.append(result).append(",");
 		}
 		if(cNumTypeArgs>0)

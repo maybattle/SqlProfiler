@@ -90,18 +90,19 @@ private:
 
 	//get the return value of a function
 	std::string CProfiler::GetReturnTypeName(const FunctionID functionId, const COR_PRF_FUNCTION_ARGUMENT_RANGE *range, INT32 *pCoreElementType);
-	void CProfiler::GetDateTimeReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange);
+	
 	void GetUnspecifiedReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange, void *pRetValue, size_t* pRetValueLength);
 	PCCOR_SIGNATURE CProfiler::ParseElementType( IMetaDataImport *pMDImport, PCCOR_SIGNATURE signature, LPWSTR signatureText, INT32 *pElementType);
 
 	DOUBLE CProfiler::GetDoubleReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange);
-	INT32 CProfiler::GetInt32ReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange);
+	INT32 CProfiler::GetInt32ReturnValue(const UINT_PTR startAddress,ULONG length);
 	FLOAT CProfiler::GetFloatReturnValue(const COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange);
 	string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange);
+	UINT64 CProfiler::GetDateTimeReturnValue(UINT_PTR startAddress);
 
 	// gets the full method name given a function ID
 	HRESULT GetFullMethodName(FunctionID functionId, LPWSTR wszMethod, int cMethod );
-	string CProfiler::GetClassName(ClassID classId);
+	string CProfiler::GetTheClassName(ClassID classId);
 
 	HRESULT GetMethodParameters(FunctionID functionId, COR_PRF_FRAME_INFO frameInfo, LPWSTR wszMethod, int cMethod);
 	// function to set up our event mask

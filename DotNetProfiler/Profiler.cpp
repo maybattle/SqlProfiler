@@ -247,6 +247,9 @@ void CProfiler::Enter(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 // our real handler for FunctionLeave notification
 void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_INFO frameInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange)
 {
+	//use only first call
+	
+	
 	CFunctionInfo* functionInfo = NULL;
 	std::map<FunctionID, CFunctionInfo*>::iterator iter = m_functionMap.find(functionID);
 	
@@ -254,14 +257,16 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 	{
 		// get it from the map and update it
 		functionInfo = (iter->second);
+		if(functionInfo->GetCallCount()==1){
 
 		string result;
 		
-		//std::string fNameRef = "System.Data.SqlClient.SqlParameter.get_Value";
-		//std::string fNameRef = "System.Data.SqlClient.SqlCommand.get_CommandText";
-		std::string fNameRef = "TestBoxedInt";
+		//std::string params = "System.Data.SqlClient.SqlParameter.get_Value";
+		std::string command = "System.Data.SqlClient.SqlCommand.get_CommandText";
+		//std::string fNameRef = "TestBoxedInt";
 		std::string functionName = functionInfo->GetName();
-		if(functionName.find(fNameRef)!=std::string::npos){
+		//if((functionName.find(params)!=std::string::npos) || (functionName.find(command)!=std::string::npos)){
+		if(functionName.find(command)!=std::string::npos){
 			INT32 returnTypeAsEnum;
 			functionInfo->SetReturnTypeName(GetReturnTypeName(functionID, argumentRange, &returnTypeAsEnum));
 			LogString("Function=%s ReturnTypeName=%s, CoreElementType=%d ",functionInfo->GetName(),functionInfo->GetReturnTypeName().c_str(), returnTypeAsEnum);	
@@ -292,6 +297,7 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 					}
 				case CorElementType::ELEMENT_TYPE_OBJECT:
 					{
+						LogString("ELEMENT_TYPE_OBJECT detected");	
 						//look if return value is a boxed value type
 						ObjectID objectId = *(ObjectID*)argumentRange->startAddress;
 						ClassID classId;
@@ -300,6 +306,7 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 						
 						if(className.compare("System.Int32")==0)
 						{
+							//LogString("Boxed int32 detected");
 							ULONG32 bufferOffset;
 							m_pICorProfilerInfo2->GetBoxClassLayout(classId,&bufferOffset);
 							INT32 value = GetInt32ReturnValue(argumentRange->startAddress+bufferOffset,sizeof(INT32));
@@ -327,7 +334,9 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 			
 			LogString("\r\n");
 		}
+		}
 	}
+
 	// decrement the call stack size
 	if (m_callStackSize > 0)
 		m_callStackSize--;
@@ -350,7 +359,6 @@ INT32 CProfiler::GetInt32ReturnValue(const UINT_PTR startAddress,ULONG length){
 	INT32 value;
 	memcpy(&value,(void*)startAddress,length);
 	return value;
-	
 }
 
 string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange){
@@ -364,11 +372,11 @@ string CProfiler::GetStringReturnValue(COR_PRF_FUNCTION_ARGUMENT_RANGE *argument
 	DWORD stringLength;
 	memcpy(&stringLength,((const void*)(stringOID+pStringLengthOffset)),sizeof(DWORD));
 
-	WCHAR *tempParameterValue = new WCHAR[stringLength*sizeof(DWORD)];
+	WCHAR *tempParameterValue = new WCHAR[stringLength*sizeof(DWORD)+1];
 	memcpy(tempParameterValue,((const void*)(stringOID+pBufferOffset)),stringLength * sizeof(DWORD));
 	tempParameterValue[stringLength*sizeof(DWORD)]= '\0';
 	//convert WCHAR to char
-	char *narrowTempParameterValue = new char[stringLength];
+	char *narrowTempParameterValue = new char[wcslen(tempParameterValue)+1];
 	UINT narrowTempParameterValueLength=0;
 	wcstombs_s(&narrowTempParameterValueLength,narrowTempParameterValue,wcslen(tempParameterValue)+1,tempParameterValue,_TRUNCATE);
 	returnValue = narrowTempParameterValue;

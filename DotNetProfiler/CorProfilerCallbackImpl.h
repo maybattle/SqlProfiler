@@ -16,8 +16,7 @@
 
 #pragma once
 
-#include "cor.h"
-#include "corprof.h"
+#include "stdafx.h"
 
 class CCorProfilerCallbackImpl : public ICorProfilerCallback2
 {

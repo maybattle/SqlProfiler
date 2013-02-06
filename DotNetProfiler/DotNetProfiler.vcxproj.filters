@@ -37,6 +37,9 @@
     <ClCompile Include="DotNetProfiler_i.c">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="TcpMessenger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="DotNetProfiler.def">
@@ -72,6 +75,9 @@
     </ClInclude>
     <ClInclude Include="DotNetProfiler.h">
       <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TcpMessenger.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

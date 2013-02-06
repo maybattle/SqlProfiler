@@ -20,23 +20,41 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
 
 namespace ProfilerLauncher
 {
+
+
     public partial class Form1 : Form
     {
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate void SqlDataCallback(int valueFromcallback);
+
+        [DllImport("DotNetProfiler.dll")]
+        public static extern void SetSqlCallback([MarshalAs(UnmanagedType.FunctionPtr)] SqlDataCallback pointer);
+
+        //readonly SqlDataCallback callback = (command) =>SetText(command);
+       TcpReceiveServer _tcpReceiver = new TcpReceiveServer();
         
+
+       
+
         private const string PROFILER_GUID = "{9E2B38F2-7355-4C61-A54F-434B7AC266C0}";
                                                                           
 
         public Form1()
         {
+            this.Closing += (s, e) => _tcpReceiver.Close();
             InitializeComponent();
+            _tcpReceiver.Open();
         }
+
 
         private void runEf_Click(object sender, EventArgs e)
         {
@@ -45,8 +63,10 @@ namespace ProfilerLauncher
 
         private void runLinq_Click(object sender, EventArgs e)
         {
+           
             RunAndProfileProcess("LinqToSql.exe");
         }
+
 
         private static void RunAndProfileProcess(string pathToExecutable)
         {
@@ -93,6 +113,8 @@ namespace ProfilerLauncher
             psi.UseShellExecute = false;
             Process p = Process.Start(psi);
         }
+
+       
 
      
 

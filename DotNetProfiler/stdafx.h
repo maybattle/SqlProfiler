@@ -31,16 +31,19 @@
 
 #define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS	// some CString constructors will be explicit
 
+#include "cor.h"
+#include "corprof.h"
 
 #include "resource.h"
 #include <atlbase.h>
 #include <atlcom.h>
 #include <Windows.h>
 #include <string>
+#include <winsock.h>
 #include "winnt.h"
 #include <assert.h>
 #include "corhlpr.h"
-
+#include "CorProfilerCallbackImpl.h"
 
 using namespace ATL;
 using namespace std;

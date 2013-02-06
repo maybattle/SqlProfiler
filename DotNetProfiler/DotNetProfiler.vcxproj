@@ -254,6 +254,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TcpMessenger.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DotNetProfiler.def" />
@@ -270,6 +271,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="DotNetProfiler.h" />
+    <ClInclude Include="TcpMessenger.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DotNetProfiler.rc" />

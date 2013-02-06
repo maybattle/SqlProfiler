@@ -16,7 +16,7 @@
 
 #pragma once
 #include "stdafx.h"
-#include "CorProfilerCallbackImpl.h"
+
 
 class CFunctionInfo
 {

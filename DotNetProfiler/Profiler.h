@@ -30,6 +30,8 @@
 #define NAME_BUFFER_SIZE 1024
 #define MAX_FUNCTION_LENGTH NAME_BUFFER_SIZE
 
+
+
 // CProfiler
 class ATL_NO_VTABLE CProfiler :
 	public CComObjectRootEx<CComSingleThreadModel>,
@@ -50,9 +52,13 @@ public:
 	HRESULT FinalConstruct();
 	void FinalRelease();
 
+	void CreateLockFile();
+
     // STARTUP/SHUTDOWN EVENTS
     STDMETHOD(Initialize)(IUnknown *pICorProfilerInfoUnk);
     STDMETHOD(Shutdown)();
+
+	void SetSqlCallback(LONG pCallback);
 
 	// callback functions
 	void Enter(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_INFO frameInfo, COR_PRF_FUNCTION_ARGUMENT_INFO *argumentInfo);
@@ -121,5 +127,14 @@ private:
 	
 
 };
+
+
+
+extern "C" {
+	typedef void (__stdcall *CallBackToCSharp)(int);
+	extern __declspec(dllexport) void SetSqlCallback(int callbackAddress);
+}
+
+extern CProfiler *g_pICorProfilerCallback;     // global reference to callback object
 
 OBJECT_ENTRY_AUTO(__uuidof(Profiler), CProfiler)

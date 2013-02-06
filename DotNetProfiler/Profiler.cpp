@@ -28,8 +28,37 @@ WCHAR g_szName[NAME_BUFFER_SIZE];
 
 
 // global reference to the profiler object (this) used by the static functions
-CProfiler* g_pICorProfilerCallback = NULL;
+static CProfiler* g_pICorProfilerCallback;
 
+
+//callback to notify c# from profiler
+CallBackToCSharp _callback;
+
+ __declspec(dllexport) void SetSqlCallback(int callbackAddress){
+	_callback = (CallBackToCSharp)callbackAddress;
+	HANDLE f = CreateFile(L"Test.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	ULONG bWritten;
+	char dest[1000];
+	//sprintf(dest,"Address:%d",callbackAddress);
+	WriteFile(f, dest, (DWORD)strlen(dest), &bWritten, NULL);
+	
+	if(g_pICorProfilerCallback==NULL){
+		_callback(10);
+		WriteFile(f, "NULL", (DWORD)4, &bWritten, NULL);
+	}else {
+		_callback(11);
+		WriteFile(f, "NOTNULL", (DWORD)4, &bWritten, NULL);
+	}
+	if(f!=INVALID_HANDLE_VALUE)
+		CloseHandle(f);
+	return;
+}
+
+void CProfiler::CreateLockFile(){
+	HANDLE f = CreateFile(L"Lock.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(f!=INVALID_HANDLE_VALUE)
+		CloseHandle(f);
+}
 
 // CProfiler
 CProfiler::CProfiler() :
@@ -37,6 +66,11 @@ CProfiler::CProfiler() :
 {
 	m_hLogFile = INVALID_HANDLE_VALUE;
 	m_callStackSize = 0;
+}
+
+
+void CProfiler::SetSqlCallback(LONG callback){
+	LogString("SetSqlCallback called");
 }
 
 HRESULT CProfiler::FinalConstruct()
@@ -248,8 +282,6 @@ void CProfiler::Enter(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_INFO frameInfo, COR_PRF_FUNCTION_ARGUMENT_RANGE *argumentRange)
 {
 	//use only first call
-	
-	
 	CFunctionInfo* functionInfo = NULL;
 	std::map<FunctionID, CFunctionInfo*>::iterator iter = m_functionMap.find(functionID);
 	
@@ -257,6 +289,11 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 	{
 		// get it from the map and update it
 		functionInfo = (iter->second);
+		if(_callback!=NULL){
+			_callback(functionInfo->GetCallCount());
+			LogString("Callback called");
+		}
+		else LogString("Callback Address:%d",*_callback);
 		if(functionInfo->GetCallCount()==1){
 
 		string result;
@@ -293,6 +330,7 @@ void CProfiler::Leave(FunctionID functionID, UINT_PTR clientData, COR_PRF_FRAME_
 					{
 						string value = GetStringReturnValue(argumentRange);
 						LogString("ReturnValueString=%s",value.c_str());
+						//if(_pSqlCallBack!=NULL)_pSqlCallBack(value.c_str());
 						break;
 					}
 				case CorElementType::ELEMENT_TYPE_OBJECT:
@@ -765,6 +803,7 @@ STDMETHODIMP CProfiler::Initialize(IUnknown *pICorProfilerInfoUnk)
 	else
 		LogString("Successfully initialized profiling\r\n\r\n" );
 
+	CreateLockFile();
     return S_OK;
 }
 
@@ -839,8 +878,7 @@ void CProfiler::LogString(char *pszFmtString, ...)
 		va_end( args );
 
 		// write out to the file if the file is open
-		WriteFile(m_hLogFile, szBuffer, (DWORD)strlen(szBuffer), &dwWritten, NULL);
-	}
+		WriteFile(m_hLogFile, szBuffer, (DWORD)strlen(szBuffer), &dwWritten, NULL);}
 }
 
 
@@ -898,7 +936,7 @@ HRESULT CProfiler::SetEventMask()
 	//COR_PRF_MONITOR_IMMUTABLE	= COR_PRF_MONITOR_CODE_TRANSITIONS | COR_PRF_MONITOR_REMOTING | COR_PRF_MONITOR_REMOTING_COOKIE | COR_PRF_MONITOR_REMOTING_ASYNC | COR_PRF_MONITOR_GC | COR_PRF_ENABLE_REJIT | COR_PRF_ENABLE_INPROC_DEBUGGING | COR_PRF_ENABLE_JIT_MAPS | COR_PRF_DISABLE_OPTIMIZATIONS | COR_PRF_DISABLE_INLINING | COR_PRF_ENABLE_OBJECT_ALLOCATED | COR_PRF_ENABLE_FUNCTION_ARGS | COR_PRF_ENABLE_FUNCTION_RETVAL | COR_PRF_ENABLE_FRAME_INFO | COR_PRF_ENABLE_STACK_SNAPSHOT | COR_PRF_USE_PROFILE_IMAGES
 
 	// set the event mask 
-	DWORD eventMask = (DWORD) (COR_PRF_MONITOR_ENTERLEAVE|COR_PRF_ENABLE_FUNCTION_RETVAL);
+	DWORD eventMask = (DWORD) (COR_PRF_MONITOR_ENTERLEAVE|COR_PRF_ENABLE_FUNCTION_RETVAL|COR_PRF_MONITOR_OBJECT_ALLOCATED);
 	return m_pICorProfilerInfo->SetEventMask(eventMask);
 }
 
